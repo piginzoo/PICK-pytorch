@@ -128,6 +128,8 @@ class Encoder(nn.Module):
             rois_batch[i, :, 0] = i
 
         spatial_scale = float(H / origin_H)
+
+        # TODO 做了一个啥pooling？干嘛？
         # use roi pooling get image segments
         # (B*N, C, roi_pooling_size, roi_pooling_size)
         if self.roi_pooling_mode == 'roi_align':
@@ -145,7 +147,7 @@ class Encoder(nn.Module):
 
         # add positional embedding
         transcripts_segments = self.pe_droput(transcripts + self.position_embedding[:, :, :transcripts.size(2), :])
-        # (B*N, T ,D)
+        # (B*N, T ,D) TODO 位置的embeding
         transcripts_segments = transcripts_segments.reshape(B * N, T, D)
 
         # (B*N, T, D)

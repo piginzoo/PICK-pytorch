@@ -65,7 +65,8 @@ def main(config: ConfigParser, local_master: bool, logger=None):
                        config['trainer']['val_step_interval'])) if local_master else None
 
     logger.info('Training start...') if local_master else None
-    trainer = Trainer(pick_model, optimizer,
+    trainer = Trainer(model=pick_model,
+                      optimizer=optimizer,
                       config=config,
                       data_loader=train_data_loader,
                       valid_data_loader=val_data_loader,

@@ -28,7 +28,7 @@ class PICKModel(nn.Module):
         # Given the params of each component, creates components.
         # embedding_kwargs-> word_emb
         embedding_kwargs['num_embeddings'] = len(keys_vocab_cls)
-        self.word_emb = nn.Embedding(**embedding_kwargs)
+        self.word_emb = nn.Embedding(**embedding_kwargs) # <-- 先做embeding
 
         encoder_kwargs['char_embedding_dim'] = embedding_kwargs['embedding_dim']
         self.encoder = Encoder(**encoder_kwargs)
@@ -49,6 +49,7 @@ class PICKModel(nn.Module):
     def _aggregate_avg_pooling(self, input, text_mask):
         '''
         Apply mean pooling over time (text length), (B*N, T, D) -> (B*N, D)
+        把一个bbox的文本长度的值，做了平均化，去掉了T。
         :param input: (B*N, T, D)
         :param text_mask: (B*N, T)
         :return: (B*N, D)
@@ -63,7 +64,7 @@ class PICKModel(nn.Module):
         text_len = text_len.unsqueeze(1).expand_as(sum_out)
         text_len = text_len + text_len.eq(0).float()  # avoid divide zero denominator
         # (B*N, D)
-        mean_out = sum_out.div(text_len)
+        mean_out = sum_out.div(text_len) # <--- 做平均了
         return mean_out
 
     @staticmethod
@@ -103,6 +104,7 @@ class PICKModel(nn.Module):
 
         # src_key_padding_mask is text padding mask, True is padding value (B*N, T)
         # graph_node_mask is mask for graph, True is valid node, (B*N, T)
+        # TODO 这里的graph_node_mask是啥？？？
         src_key_padding_mask, graph_node_mask = self.compute_mask(mask)
 
         # set of nodes, (B*N, T, D)
@@ -113,7 +115,7 @@ class PICKModel(nn.Module):
         # text_mask, True for valid, (including all not valid node), (B*N, T)
         text_mask = torch.logical_not(src_key_padding_mask).byte()
         # (B*N, T, D) -> (B*N, D)
-        x_gcn = self._aggregate_avg_pooling(x, text_mask)
+        x_gcn = self._aggregate_avg_pooling(x, text_mask) # 所以，现在图上的节点，是平均值，我靠！终于知道论文里的pooling啥意思了
         # (B*N, 1)，True is valid node
         graph_node_mask = graph_node_mask.any(dim=-1, keepdim=True)
         # (B*N, D), filter out not valid node
@@ -121,7 +123,7 @@ class PICKModel(nn.Module):
 
         # initial adjacent matrix (B, N, N)
         B, N, T = mask.shape
-        init_adj = torch.ones((B, N, N), device=text_emb.device)
+        init_adj = torch.ones((B, N, N), device=text_emb.device) # <-- 初始化矩阵居然就是E，单位矩阵啊，哈哈
         boxes_num = mask[:, :, 0].sum(dim=1, keepdim=True)  # (B, 1)
         # (B, N, D)
         x_gcn = x_gcn.reshape(B, N, -1)

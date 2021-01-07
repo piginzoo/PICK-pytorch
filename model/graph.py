@@ -29,23 +29,24 @@ class GraphLearningLayer(nn.Module):
         '''
 
         :param x: nodes set, (B*N, D)
-        :param adj: init adj, (B, N, N, default is 1)
+        :param adj: init adj, (B, N, N, default is 1) <-- 对，默认是E，全1矩阵
         :param box_num: (B, 1)
         :return:
                 out, soft adj matrix
                 gl loss
         '''
-        B, N, D = x.shape
+        B, N, D = x.shape # todo 难道是N，T，D？
 
         # (B, N, D)
-        x_hat = self.projection(x)
-        _, _, learning_dim = x_hat.shape
+        x_hat = self.projection(x) # todo 这个是做了一个降维么？3维度=>1维，还是最后1维降维了？
+        _, _, learning_dim = x_hat.shape # 紧接着看这个，应该是最后一维降维了 ： self.projection = nn.Linear(in_dim, learning_dim, bias=False)
 
         # (B, N, N, learning_dim)
+        # unsqueeze(2)在第二列增加1个维度，然后把这个维度扩展（其实就是复制）
         x_i = x_hat.unsqueeze(2).expand(B, N, N, learning_dim)
         x_j = x_hat.unsqueeze(1).expand(B, N, N, learning_dim)
         # (B, N, N, learning_dim)
-        distance = torch.abs(x_i - x_j)
+        distance = torch.abs(x_i - x_j) # <--- 感觉是两两做差
 
         # add -1 flag to distance, if node is not exist. to separate normal node distances from not exist node distance.
         if box_num is not None:
@@ -54,6 +55,7 @@ class GraphLearningLayer(nn.Module):
             distance = distance + mask
 
         # (B, N, N)
+        # 爱因斯坦求和公式：https://zhuanlan.zhihu.com/p/71639781，其实就是求和
         distance = torch.einsum('bijd, d->bij', distance, self.learn_w)
         out = F.leaky_relu(distance)
 
@@ -208,7 +210,7 @@ class GCNLayer(nn.Module):
         x_i = x.unsqueeze(2).expand(B, N, N, in_dim)
         x_j = x.unsqueeze(1).expand(B, N, N, in_dim)
 
-        # (B, N, N, in_dim)
+        # (B, N, N, in_dim) einsum: https://blog.csdn.net/a2806005024/article/details/96462827,我理解就是矩阵乘法
         x_i = torch.einsum('bijd, dk->bijk', x_i, self.w_vi)
         x_j = torch.einsum('bijd, dk->bijk', x_j, self.w_vj)
 
